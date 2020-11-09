@@ -1,12 +1,12 @@
-//! Treat Rust tuples as lists.
+//! Rust tuple extension.
 //!
 //! # Features
 //!
 //! 1. adding/removing element at front/back
 //!
-//! 2. converting homogeneous tuples to heterogeneous ones
+//! 2. converting heterogeneous tuples to homogeneous ones
 //!
-//! # Examples, list operations
+//! # Examples: list operations
 //!
 //! ```
 //! use tuplex::*;
@@ -39,14 +39,17 @@
 //! assert_eq!( tuple, (0,true) );
 //! ```
 //!
-//! # Examples, homogeneous/heterogeneous conversions
+//! # Examples: homogeneous/heterogeneous conversions
 //!
 //! ```
 //! use tuplex::*;
 //!
-//!
+//! // `into_homo_tuple()` works because i32 can be converted from i3, u16 and i32.
+//! assert_eq!( (3_i8, 7_u16, 21_i32).into_homo_tuple(), (3_i32, 7_i32, 21_i32) );
 //! ```
 
+/// Denotes a tuple type, the fields of which are of the same type.
+/// Up to 32 fields.
 #[macro_export]
 macro_rules! homo_tuple {
     ($t:ty;  0) => { () };
@@ -84,6 +87,7 @@ macro_rules! homo_tuple {
     ($t:ty; 32) => { ($t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t,$t) };
 }
 
+/// Indicate the amount of the tuple's fields.
 pub trait Len {
     const LEN: usize;
     fn len( &self ) -> usize;
@@ -107,6 +111,7 @@ macro_rules! impl_len {
 impl_len!( 0,      );
 impl_len!( 1, 0 T0 );
 
+/// Adds a `Front` value to the tuple, as the first field.
 pub trait PushFront<Front> {
     type Output;
     fn push_front( self, front: Front ) -> Self::Output;
@@ -125,6 +130,7 @@ macro_rules! impl_push_front {
 impl_push_front!();
 impl_push_front!( 0 T0 );
 
+/// Adds a `Back` value to the tuple, as the last field.
 pub trait PushBack<Back> {
     type Output;
     fn push_back( self, back: Back ) -> Self::Output;
@@ -143,6 +149,7 @@ macro_rules! impl_push_back {
 impl_push_back!();
 impl_push_back!( 0 T0 );
 
+/// Removes the first field of the tuple.
 pub trait PopFront {
     type Remain;
     type Front;
@@ -162,6 +169,7 @@ macro_rules! impl_pop_front {
 
 impl_pop_front!();
 
+/// Removes the last field of the tuple.
 pub trait PopBack {
     type Remain;
     type Back;
@@ -181,6 +189,16 @@ macro_rules! impl_pop_back {
 
 impl_pop_back!( () 0 T0 );
 
+/// Reshape the linear tuple type to a binary tree, either left associated or right associated.
+///
+/// # Examples
+///
+/// ```rust
+/// use tuplex::*;
+///
+/// let _: ((((),bool), i32), String) = <(bool, i32, String) as BinTuple>::LeftAssociated::default();
+/// let _: (bool, (i32, (String,()))) = <(bool, i32, String) as BinTuple>::RightAssociated::default();
+/// ```
 pub trait BinTuple {
     type LeftAssociated;
     type RightAssociated;
@@ -207,6 +225,7 @@ impl BinTuple for () {
 
 impl_bin_tuple!();
 
+/// Converts a tuple from another one, the fields of which can be converted into the fields of the new tuple.
 pub trait FromTuple<Tup> {
     fn from_tuple( tup: Tup ) -> Self;
 }
@@ -226,6 +245,7 @@ macro_rules! impl_tuple_from_tuple {
 impl_tuple_from_tuple!(       );
 impl_tuple_from_tuple!( 0 T U );
 
+/// Converts a tuple to a new one. This is the counterpart of `FromTuple`.
 pub trait IntoTuple<Tup> {
     fn into_tuple( self ) -> Tup;
 }
@@ -238,6 +258,7 @@ impl<Src,Dest> IntoTuple<Dest> for Src
     }
 }
 
+/// Converts a heterogeneous tuple to a homogeneous one.
 pub trait IntoHomoTuple<T> {
     type Output: HomoTuple<T>;
     fn into_homo_tuple( self ) -> Self::Output;
@@ -260,15 +281,25 @@ macro_rules! impl_tuple_into_homo_tuple {
 impl_tuple_into_homo_tuple!( 0,      );
 impl_tuple_into_homo_tuple!( 1, 0 T0 );
 
+/// Homogeneous Tuple's trait.
 pub trait HomoTuple<T>
     where Self: Len
               + IntoArray<T>
               + IntoBoxedSlice<T>
 {
+    /// New type of tuple after fields converted into `Option`.
     type FieldsWrapped;
+
+    /// New type of tuple after the whole tuple has been wrapped.
     type TupleWrapped: IntoIterator<Item=T>;
+
+    /// Converts fields into `Option`.
     fn wrap_fields( self ) -> Self::FieldsWrapped;
+
+    /// Wraps the whole tuple and get a new type.
     fn wrap_tuple( self ) -> Self::TupleWrapped;
+
+    /// Converts the tuple into an iterater which owns the fields, by internally converting all fields into `Option`s.
     fn wrap_into_iter( self ) -> <Self::TupleWrapped as IntoIterator>::IntoIter;
 }
 
@@ -356,6 +387,7 @@ macro_rules! impl_homo {
 
 impl_homo!( HTup1 HTupIter1 1, 0 );
 
+/// The map adapter for homogeneous tuples
 pub trait MapHomoTuple<T,U>: HomoTuple<T> + Sized {
     type Output: HomoTuple<U> + Sized;
     fn map_homo_tuple( self, f: impl Fn(T)->U ) -> <Self as MapHomoTuple<T,U>>::Output;
@@ -390,6 +422,7 @@ macro_rules! impl_array_from_tuple {
 impl_array_from_tuple!( 0,      );
 impl_array_from_tuple!( 1, 0 T0 );
 
+/// Converts a tuple into an array, where the fields of the tuple can be converted into the same type of the array element.
 pub trait IntoArray<T> {
     type Output: Len;
     fn into_array( self ) -> Self::Output;
@@ -398,12 +431,12 @@ pub trait IntoArray<T> {
 macro_rules! impl_tuple_into_array {
     ($len:tt, $($index:tt $gen:ident)*) => {
         impl<T$(,$gen)*> IntoArray<T> for ($($gen,)*)
-            where $(T: From<$gen>),*
+            where $($gen: Into<T>),*
         {
             type Output = [T; $len];
 
             fn into_array( self ) -> Self::Output {
-                [ $( T::from( self.$index )),* ]
+                [ $( (self.$index).into() ),* ]
             }
         }
     };
@@ -412,6 +445,7 @@ macro_rules! impl_tuple_into_array {
 impl_tuple_into_array!( 0,      );
 impl_tuple_into_array!( 1, 0 T0 );
 
+/// Converts a tuple into a boxed slice, where the fields of the tuple can be converted into the same type of the slice element.
 pub trait IntoBoxedSlice<T> {
     fn into_boxed_slice( self ) -> Box<[T]>;
 }
@@ -419,10 +453,10 @@ pub trait IntoBoxedSlice<T> {
 macro_rules! impl_tuple_into_boxed_slice {
     ($len:tt, $($index:tt $gen:ident)*) => {
         impl<T$(,$gen)*> IntoBoxedSlice<T> for ($($gen,)*)
-            where $(T: From<$gen>),*
+            where $($gen: Into<T>),*
         {
             fn into_boxed_slice( self ) -> Box<[T]> {
-                Box::new( [ $( T::from( self.$index )),* ])
+                Box::new([ $( (self.$index).into() ),* ])
             }
         }
     };
@@ -431,6 +465,7 @@ macro_rules! impl_tuple_into_boxed_slice {
 impl_tuple_into_boxed_slice!( 0,      );
 impl_tuple_into_boxed_slice!( 1, 0 T0 );
 
+/// Converts a tuple into a `Vec`, where the fields of the tuple can be converted into the same type of the `Vec`'s element.
 pub trait IntoVec<T> {
     fn into_vec( self ) -> Vec<T>;
 }
@@ -450,7 +485,10 @@ macro_rules! impl_tuple_into_vec {
 impl_tuple_into_vec!( 0,      );
 impl_tuple_into_vec!( 1, 0 T0 );
 
+/// Marks that `Self` is a value of `T`. The purpose of this trait is for implementing `TupleOf`.
 pub trait ValueOf<T> {}
+
+/// A tuple is composed of `T` if all of its fields are values of `T`. See `ValueOf`.
 pub trait TupleOf<T> {}
 
 macro_rules! impl_tuple_of {
@@ -465,11 +503,13 @@ macro_rules! impl_tuple_of {
 impl_tuple_of!();
 impl_tuple_of!( T0 );
 
+/// Converts to another type. The purpose of this trait is for implementing `ConvertTuple`.
 pub trait Convert {
     type Output;
     fn convert( self ) -> Self::Output;
 }
 
+/// Converts a tuple to another one, where the fields of the old tuple can be `Convert`-ed into the fiedls of the new tuple. See `Convert`.
 pub trait ConvertTuple {
     type Output;
     fn convert_tuple( self ) -> Self::Output;
