@@ -10,3 +10,7 @@ repository = "https://github.com/oooutlk/tuplex"
 documentation = "https://docs.rs/tuplex"
 categories = [ "rust-patterns" ]
 description = "Rust tuple extension."
+
+[features]
+default = ["std"]
+std = []
