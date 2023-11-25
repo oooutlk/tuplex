@@ -64,6 +64,16 @@
 //!
 //! ```
 
+#![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(not(feature = "std"))]
+pub extern crate alloc;
+#[cfg(not(feature = "std"))]
+use alloc::{boxed::Box, vec, vec::Vec};
+#[cfg(not(feature = "std"))]
+use core::marker::PhantomData;
+#[cfg(feature = "std")]
+use std::marker::PhantomData;
+
 /// Denotes a tuple type, the fields of which are of the same type.
 /// Up to 32 fields.
 #[macro_export]
@@ -328,8 +338,6 @@ pub trait HomoTuple<T>
     /// Converts the tuple into an iterater which owns the fields, by internally converting all fields into `Option`s.
     fn wrap_into_iter( self ) -> <Self::TupleWrapped as IntoIterator>::IntoIter;
 }
-
-use std::marker::PhantomData;
 
 pub struct HTup0<T>( PhantomData<T> );
 
